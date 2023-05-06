@@ -1,0 +1,404 @@
+openapi: '3.0.2'
+info:
+  title: VK Tech TZ API docs
+  version: '1.0'
+servers:
+  - url: http://127.0.0.1:8000/redoc
+components:
+  schemas:
+    UnauthorizedError:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: "Описание ошибки"
+          example: "Токен не предоставлен"
+    NotFoundError:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: "Описание ошибки"
+          example: "обьект с таким usename не найден"
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          description: Название поля, в котором произошли ошибки.
+          items:
+            type: string
+    FriendName:
+      type: object
+      nullable: True
+      properties:
+        username:
+          type: string
+          description: Username пользователя
+      example:
+      - username: Alexeysandor
+      - username: Alexeysandoren
+    UserInfo:
+      type: object
+      properties:
+        username:
+          type: string
+          description: Username пользователя
+        friendship_status:
+          type: string
+          description: Статус дружбы с пользователем
+  securitySchemes:
+    djoserToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: 'Авторизация по токену. <br>
+        Все запросы от имени пользователя должны выполняться с заголовком "Authorization: Token TOKENVALUE"'
+
+tags:
+  - name: Пользователи
+    description: Эндпоинты для работы с пользователями (Создание, просмотр всех обьектов сущности, конкретного обьекта сущности)
+  - name: Друзья
+    description: Эндпоинты для работы с сервисом друзей. Возможность принять/отклонить заявку, посмотреть входящие/исходящие заявки. Посмотреть список своих друзей.
+
+paths:
+  /users:
+    get:
+      tags:
+        - Пользователи
+      summary: Получить список всех пользователей
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+              example:
+                - username: Alexeysandor
+                  friendship_status: Уже друзья
+                - username: Sandor
+                  friendship_status: Есть исходящий запрос в друзья
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+    post:
+      tags:
+        - Пользователи
+      summary: Создать пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  uniqueItems: True
+                  type: string
+                  description: username
+                  example: Alexeysandor
+                email:
+                  type: string
+                  description: email
+                  example: Alexeysandor@gmail.com
+                password:
+                  type: string
+                  description: password
+                  example: qwerty123456
+              required:
+                - username
+                - password
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                    description: username
+                    example: Alexeysandor
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example: 
+                username: Пользователь с таким username уже существует
+  /users/{username}/:
+    get:
+      tags:
+        - Пользователи
+      summary: Получить конкретного пользователя по его username
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: "Username пользователя"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserInfo"
+              example:
+                - username: Alexeysandor
+                  friendship_status: Уже друзья
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+  /users/{username}/add_to_friends/:
+    post:
+      tags:
+        - Пользователи
+      summary: Отправить пользователю заявку на добавление в друзья
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: "Username пользователя"
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    description: Заявку на добавление в друзья отправлена пользователю {username}
+                    example: Заявку на добавление в друзья отправлена пользователю Alexeysandor
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              example: 
+                error: Вы не можете отправить заявку самому себе
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+  /friends:
+    get:
+      tags:
+        - Друзья
+      summary: Получить список своих друзей
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendName"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+  /friends/{username}/:
+    delete:
+      tags:
+        - Друзья
+      summary: Удалить пользователя из друзей
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: "Username пользователя"
+          schema:
+            type: string
+      responses:
+        204:
+          description: No Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    description: Пользователь {username} успешно удален из друзей
+                example:
+                - success: Пользователь Alexeysandor успешно удален из друзей
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+  /friends/incoming_requests/:
+    get:
+      tags:
+        - Друзья
+      summary: Получить список входящих заявок
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendName"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+  /friends/out_requests/:
+    get:
+      tags:
+        - Друзья
+      summary: Получить список исходящих заявок
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendName"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+  /friends/{username}/approve_request/:
+    patch:
+      tags:
+        - Друзья
+      summary: Подтвердить добавление пользователя в друзья
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: "Username пользователя"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    description: Пользователь {username} добавлен в друзья
+                example:
+                  success: Пользователь admin добавлен в друзья
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
+  /friends/{username}/decline_request/:
+    delete:
+      tags:
+        - Друзья
+      summary: Отклонить заявку пользователя на добавление в друзья
+      security:
+        - djoserToken: []
+      description: Страница доступна авторизированному пользователю
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: "Username пользователя"
+          schema:
+            type: string
+      responses:
+        204:
+          description: No Content
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: string
+                    description: Заявка пользователя {friend} на добавление в друзья отклонена
+                example:
+                  success: Заявка пользователя Alexeysandor на добавление в друзья отклонена
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedError'
+        '404':
+          description: Not Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundError'
